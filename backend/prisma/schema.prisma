@@ -50,6 +50,9 @@ model Product {
   description String
   basePrice   Float
   imageUrl    String?
+  state       String?
+  targetGroup String?
+  region      String?
   isFeatured  Boolean  @default(false)
   isNew       Boolean  @default(true)
   categoryId  String

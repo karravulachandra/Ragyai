@@ -1,37 +1,51 @@
 import { useState, useEffect, useContext } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { CartContext } from '../context/CartContext';
+import { FALLBACK_PRODUCTS } from '../data/fallbackProducts';
 
 function ProductDetail() {
   const { slug } = useParams();
-  const { addToCart } = useContext(CartContext);
-  const [product, setProduct] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { addToCart, setIsCartOpen } = useContext(CartContext);
+  const [product, setProduct] = useState(() => FALLBACK_PRODUCTS.find(p => p.slug === slug) || null);
+  const [loading, setLoading] = useState(!FALLBACK_PRODUCTS.find(p => p.slug === slug));
+  const navigate = useNavigate();
 
   // Selection state
   const [selectedSize, setSelectedSize] = useState(null);
   const [selectedColor, setSelectedColor] = useState(null);
   const [quantity, setQuantity] = useState(1);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState('craft');
 
   useEffect(() => {
+    const initSelection = (data) => {
+      if (data.variants && data.variants.length > 0) {
+        const firstAvailable = data.variants.find(v => v.inventory > 0) || data.variants[0];
+        if (firstAvailable) {
+          if (firstAvailable.size) setSelectedSize(firstAvailable.size);
+          if (firstAvailable.color) setSelectedColor(firstAvailable.color);
+        }
+      }
+    };
+
+    const initial = FALLBACK_PRODUCTS.find(p => p.slug === slug);
+    if (initial) {
+      setProduct(initial);
+      initSelection(initial);
+      setLoading(false);
+    }
+
     const fetchProduct = async () => {
       try {
         const res = await fetch(`http://127.0.0.1:3001/api/products/${slug}`, { cache: 'no-store' });
-        if (!res.ok) throw new Error("Product not found");
-        const data = await res.json();
-        setProduct(data);
-
-        // Auto-select first available options if possible
-        if (data.variants && data.variants.length > 0) {
-          const firstAvailable = data.variants.find(v => v.inventory > 0);
-          if (firstAvailable) {
-            if (firstAvailable.size) setSelectedSize(firstAvailable.size);
-            if (firstAvailable.color) setSelectedColor(firstAvailable.color);
-          }
+        if (res.ok) {
+          const data = await res.json();
+          setProduct(data);
+          initSelection(data);
         }
       } catch (err) {
-        setError(err.message);
+        // Already using local data
+        if (!initial) setError("Product not found");
       } finally {
         setLoading(false);
       }
@@ -39,17 +53,19 @@ function ProductDetail() {
     fetchProduct();
   }, [slug]);
 
-  if (loading) return <div className="loading">Loading product details...</div>;
-  if (error) return <div className="loading" style={{ color: '#ef4444' }}>{error}</div>;
-  if (!product) return <div className="loading">Product not found.</div>;
+  if (loading) return <div className="loading">Curating traditional attire details...</div>;
+  if (error && !product) return <div className="loading" style={{ color: '#dc2626' }}>{error}</div>;
+  if (!product) return <div className="loading">Traditional attire not found.</div>;
 
   // Find the exact variant based on selections
   const selectedVariant = product.variants?.find(
     v => (v.size === selectedSize || !v.size) && (v.color === selectedColor || !v.color)
-  );
+  ) || product.variants?.[0];
 
   const price = selectedVariant?.priceOverride || product.basePrice;
   const isOutOfStock = selectedVariant && selectedVariant.inventory <= 0;
+  const mrp = Math.round(price * 1.25);
+  const discountPercent = Math.round(((mrp - price) / mrp) * 100);
 
   const handleAddToCart = () => {
     if (!selectedVariant) {
@@ -57,144 +73,363 @@ function ProductDetail() {
       return;
     }
     addToCart(product, selectedVariant, quantity);
-    alert("Added to cart!");
+    setIsCartOpen(true);
   };
 
-  // Get unique sizes and colors
-  const sizes = [...new Set(product.variants.map(v => v.size).filter(Boolean))];
-  const colors = [...new Set(product.variants.map(v => v.color).filter(Boolean))];
+  const handleBuyNow = () => {
+    if (!selectedVariant) return;
+    addToCart(product, selectedVariant, quantity);
+    navigate('/checkout');
+  };
+
+  // Unique sizes and colors
+  const sizes = [...new Set((product.variants || []).map(v => v.size).filter(Boolean))];
+  const colors = [...new Set((product.variants || []).map(v => v.color).filter(Boolean))];
+
+  const getDemographicBadgeColor = (group) => {
+    switch ((group || '').toUpperCase()) {
+      case 'WOMEN': return '#db2777';
+      case 'MEN': return '#2563eb';
+      case 'GIRLS': return '#d97706';
+      case 'GRANDPARENTS': return '#059669';
+      default: return '#ff9933';
+    }
+  };
 
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4rem', alignItems: 'start' }}>
-      <div style={{ flex: 1 }}>
-        <div style={{ width: '100%', aspectRatio: '4/5', background: 'var(--card-bg)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '6rem', overflow: 'hidden' }}>
-          <img
-            src={product.imageUrl || 'https://images.unsplash.com/photo-1610030469983-98e550d615ef?w=800&q=80'}
-            alt={product.name}
-            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          />
-        </div>
+    <div className="container" style={{ padding: '2.5rem 1.5rem 6rem' }}>
+      {/* Breadcrumb Navigation */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', color: '#6b7280', marginBottom: '2rem', flexWrap: 'wrap' }}>
+        <Link to="/" style={{ color: '#4b5563' }}>Home</Link>
+        <span>/</span>
+        <Link to="/shop" style={{ color: '#4b5563' }}>All States</Link>
+        {product.state && (
+          <>
+            <span>/</span>
+            <span style={{ color: '#4b5563' }}>{product.state}</span>
+          </>
+        )}
+        <span>/</span>
+        <span style={{ color: '#18181b', fontWeight: 600 }}>{product.name}</span>
       </div>
 
-      <div>
-        <Link to="/" style={{ color: 'var(--primary)', fontWeight: 600, display: 'inline-block', marginBottom: '1rem' }}>
-          &larr; Back to Shop
-        </Link>
-        <div className="product-category">{product.category?.name}</div>
-        <h1 style={{ fontSize: '2.5rem', fontWeight: 800, marginBottom: '1rem' }}>{product.name}</h1>
-        <div style={{ fontSize: '1.5rem', fontWeight: 600, color: 'var(--text-muted)', marginBottom: '2rem' }}>
-          ₹{price.toFixed(2)}
-        </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '3.5rem', alignItems: 'start' }}>
+        {/* Left Column: Product Image Gallery (Tones Fashion Clean Look) */}
+        <div>
+          <div style={{ 
+            width: '100%', 
+            aspectRatio: '3/4', 
+            background: '#f8f9fa', 
+            borderRadius: '16px', 
+            overflow: 'hidden', 
+            position: 'relative', 
+            border: '1px solid var(--color-border)',
+            boxShadow: 'var(--shadow-sm)'
+          }}>
+            <img
+              src={product.imageUrl || '/kanjeevaram_saree.png'}
+              alt={product.name}
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => {
+                e.target.onerror = null;
+                e.target.src = '/kanjeevaram_saree.png';
+              }}
+            />
 
-        <p style={{ fontSize: '1.1rem', color: 'var(--text-color)', marginBottom: '3rem', opacity: 0.9 }}>
-          {product.description}
-        </p>
+            {product.state && (
+              <div className="badge-state" style={{ fontSize: '0.82rem', padding: '0.35rem 0.85rem', top: '1rem', left: '1rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
+                  <circle cx="12" cy="10" r="3"></circle>
+                </svg>
+                <span>{product.state}</span>
+              </div>
+            )}
 
-        {/* Dummy Details added for Phase 6 */}
-        <div style={{ marginBottom: '2rem', padding: '1.5rem', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid var(--card-border)' }}>
-          <h4 style={{ fontSize: '1.1rem', fontWeight: 600, marginBottom: '1rem', color: 'var(--accent)' }}>Fabric & Fit Details</h4>
-          <ul style={{ listStyle: 'none', color: 'var(--text-muted)', fontSize: '0.95rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-            <li>• 100% Organic Heavyweight Cotton (400GSM)</li>
-            <li>• Drop-shoulder oversized fit</li>
-            <li>• Pre-shrunk for zero shrinkage after washing</li>
-            <li>• Ethically manufactured in Portugal</li>
-          </ul>
-        </div>
+            {product.targetGroup && (
+              <div 
+                className="badge-demographic" 
+                style={{ 
+                  background: getDemographicBadgeColor(product.targetGroup),
+                  bottom: '1rem', 
+                  left: '1rem',
+                  fontSize: '0.75rem',
+                  padding: '0.25rem 0.75rem'
+                }}
+              >
+                {product.targetGroup === 'GRANDPARENTS' ? 'ELDERS' : product.targetGroup}
+              </div>
+            )}
+          </div>
 
-        <div style={{ marginBottom: '2rem', display: 'flex', gap: '1.5rem', color: 'var(--text-secondary)' }}>
-          <div title="Machine Wash Cold" style={{ fontSize: '1.5rem', cursor: 'help' }}>🌊</div>
-          <div title="Do Not Bleach" style={{ fontSize: '1.5rem', cursor: 'help' }}>🚫</div>
-          <div title="Tumble Dry Low" style={{ fontSize: '1.5rem', cursor: 'help' }}>🌥️</div>
-          <div title="Iron Low Heat" style={{ fontSize: '1.5rem', cursor: 'help' }}>👔</div>
-        </div>
-
-        <div style={{ marginBottom: '2.5rem' }}>
-          <button style={{ background: 'transparent', color: 'var(--accent)', fontWeight: 600, textDecoration: 'underline', fontSize: '0.9rem' }}>
-            📏 Open Interactive Size Predictor
-          </button>
-        </div>
-
-        {sizes.length > 0 && (
-          <div style={{ marginBottom: '1.5rem' }}>
-            <h4 style={{ marginBottom: '0.5rem', fontWeight: 600 }}>Size</h4>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {sizes.map(size => (
-                <button
-                  key={size}
-                  onClick={() => setSelectedSize(size)}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: selectedSize === size ? 'var(--primary)' : 'var(--card-bg)',
-                    border: `1px solid ${selectedSize === size ? 'var(--primary)' : 'var(--card-border)'}`,
-                    color: 'white',
-                    borderRadius: '8px',
-                    fontWeight: 600
-                  }}
-                >
-                  {size}
-                </button>
-              ))}
+          <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+            <div style={{ 
+              width: '72px', 
+              height: '90px', 
+              borderRadius: '8px', 
+              overflow: 'hidden', 
+              border: '2px solid #18181b',
+              cursor: 'pointer' 
+            }}>
+              <img 
+                src={product.imageUrl || '/kanjeevaram_saree.png'} 
+                alt="Thumbnail" 
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+              />
             </div>
           </div>
-        )}
+        </div>
 
-        {colors.length > 0 && (
-          <div style={{ marginBottom: '2rem' }}>
-            <h4 style={{ marginBottom: '0.5rem', fontWeight: 600 }}>Color</h4>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
-              {colors.map(color => (
-                <button
-                  key={color}
-                  onClick={() => setSelectedColor(color)}
-                  style={{
-                    padding: '0.5rem 1rem',
-                    background: selectedColor === color ? 'var(--primary)' : 'var(--card-bg)',
-                    border: `1px solid ${selectedColor === color ? 'var(--primary)' : 'var(--card-border)'}`,
-                    color: 'white',
-                    borderRadius: '8px',
-                    fontWeight: 600
-                  }}
-                >
-                  {color}
-                </button>
-              ))}
+        {/* Right Column: Product Detail & Purchase Flow */}
+        <div>
+          <div style={{ 
+            fontSize: '0.78rem', 
+            textTransform: 'uppercase', 
+            letterSpacing: '1.5px', 
+            color: '#ff9933', 
+            fontWeight: 700,
+            marginBottom: '0.4rem'
+          }}>
+            {product.state} Heritage • {product.category?.name}
+          </div>
+
+          <h1 style={{ fontSize: '2.4rem', fontWeight: 800, marginBottom: '0.75rem', color: '#18181b', lineHeight: 1.2 }}>
+            {product.name}
+          </h1>
+
+          {/* Pricing Row */}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.75rem', marginBottom: '0.5rem' }}>
+            <span style={{ fontSize: '1.85rem', fontWeight: 800, color: '#18181b' }}>
+              ₹{price.toLocaleString('en-IN')}
+            </span>
+            <span style={{ fontSize: '1.1rem', color: '#9ca3af', textDecoration: 'line-through' }}>
+              ₹{mrp.toLocaleString('en-IN')}
+            </span>
+            <span style={{ 
+              background: '#dcfce7', 
+              color: '#15803d', 
+              padding: '2px 8px', 
+              borderRadius: '6px', 
+              fontWeight: 700, 
+              fontSize: '0.85rem' 
+            }}>
+              {discountPercent}% OFF
+            </span>
+          </div>
+
+          <div style={{ fontSize: '0.82rem', color: '#6b7280', marginBottom: '1.75rem' }}>
+            Inclusive of all taxes • <strong>Free Pan-India Express Delivery</strong> on this item
+          </div>
+
+          <p style={{ fontSize: '1rem', color: '#4b5563', lineHeight: 1.7, marginBottom: '1.75rem' }}>
+            {product.description}
+          </p>
+
+          {/* Handloom Provenance Card */}
+          <div style={{ 
+            background: '#f8f9fa', 
+            border: '1px solid var(--color-border)', 
+            borderRadius: '12px', 
+            padding: '1.25rem', 
+            marginBottom: '2rem' 
+          }}>
+            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#18181b', marginBottom: '0.5rem' }}>
+              Handloom Provenance & Weave Authenticity
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '0.75rem', fontSize: '0.84rem', color: '#4b5563' }}>
+              <div>• <strong>State:</strong> {product.state}</div>
+              <div>• <strong>Wearer:</strong> {product.targetGroup}</div>
+              <div>• <strong>Certification:</strong> Silk Mark / Handloom</div>
+              <div>• <strong>Origin:</strong> Cooperative Artisans</div>
             </div>
           </div>
-        )}
 
-        <div style={{ marginBottom: '2rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <h4 style={{ fontWeight: 600 }}>Quantity</h4>
-          <div style={{ display: 'flex', alignItems: 'center', background: 'var(--card-bg)', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--card-border)' }}>
-            <button onClick={() => setQuantity(Math.max(1, quantity - 1))} style={{ padding: '0.5rem 1rem', background: 'transparent', color: 'white' }}>-</button>
-            <div style={{ padding: '0.5rem 1rem', fontWeight: 600 }}>{quantity}</div>
+          {/* Size Pills */}
+          {sizes.length > 0 && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#18181b' }}>Select Size</span>
+                <Link to="/size-guide" style={{ fontSize: '0.8rem', color: '#ff9933', textDecoration: 'underline' }}>
+                  Size & Drape Guide
+                </Link>
+              </div>
+              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                {sizes.map(size => (
+                  <button
+                    key={size}
+                    onClick={() => setSelectedSize(size)}
+                    style={{
+                      padding: '0.55rem 1.25rem',
+                      borderRadius: 'var(--button-border-radius)',
+                      background: selectedSize === size ? '#18181b' : '#ffffff',
+                      color: selectedSize === size ? '#ffffff' : '#18181b',
+                      border: `1px solid ${selectedSize === size ? '#18181b' : '#d1d5db'}`,
+                      fontWeight: 600,
+                      fontSize: '0.88rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Color Pills */}
+          {colors.length > 0 && (
+            <div style={{ marginBottom: '1.75rem' }}>
+              <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#18181b', marginBottom: '0.5rem' }}>
+                Color / Weave Tone
+              </div>
+              <div style={{ display: 'flex', gap: '0.6rem', flexWrap: 'wrap' }}>
+                {colors.map(color => (
+                  <button
+                    key={color}
+                    onClick={() => setSelectedColor(color)}
+                    style={{
+                      padding: '0.55rem 1.25rem',
+                      borderRadius: 'var(--button-border-radius)',
+                      background: selectedColor === color ? '#18181b' : '#ffffff',
+                      color: selectedColor === color ? '#ffffff' : '#18181b',
+                      border: `1px solid ${selectedColor === color ? '#18181b' : '#d1d5db'}`,
+                      fontWeight: 600,
+                      fontSize: '0.88rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease'
+                    }}
+                  >
+                    {color}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Quantity & Inventory */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '2rem' }}>
+            <div style={{ fontWeight: 600, fontSize: '0.9rem', color: '#18181b' }}>Quantity</div>
+            <div className="qty-control">
+              <button onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
+              <span style={{ minWidth: '28px', textAlign: 'center' }}>{quantity}</span>
+              <button onClick={() => setQuantity(selectedVariant ? Math.min(selectedVariant.inventory || 50, quantity + 1) : quantity + 1)}>+</button>
+            </div>
+            {selectedVariant && (
+              <span style={{ 
+                color: isOutOfStock ? '#dc2626' : '#16a34a', 
+                fontWeight: 600, 
+                fontSize: '0.85rem' 
+              }}>
+                {isOutOfStock ? 'Sold Out' : '✓ In Stock (Ready to Ship)'}
+              </span>
+            )}
+          </div>
+
+          {/* Action CTAs (Tones Fashion Pill Style) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '2.5rem' }}>
             <button
-              onClick={() => setQuantity(selectedVariant ? Math.min(selectedVariant.inventory, quantity + 1) : quantity + 1)}
-              style={{ padding: '0.5rem 1rem', background: 'transparent', color: 'white' }}
+              className="btn btn-primary"
+              onClick={handleAddToCart}
+              disabled={!selectedVariant || isOutOfStock}
+              style={{
+                padding: '0.9rem',
+                fontSize: '1rem',
+                opacity: (!selectedVariant || isOutOfStock) ? 0.5 : 1,
+                cursor: (!selectedVariant || isOutOfStock) ? 'not-allowed' : 'pointer'
+              }}
             >
-              +
+              {isOutOfStock ? 'Sold Out' : '+ Add to Bag'}
+            </button>
+
+            <button
+              className="btn btn-accent"
+              onClick={handleBuyNow}
+              disabled={!selectedVariant || isOutOfStock}
+              style={{
+                padding: '0.9rem',
+                fontSize: '1rem',
+                opacity: (!selectedVariant || isOutOfStock) ? 0.5 : 1,
+                cursor: (!selectedVariant || isOutOfStock) ? 'not-allowed' : 'pointer'
+              }}
+            >
+              Buy It Now &rarr;
             </button>
           </div>
 
-          {selectedVariant && (
-            <span style={{ color: isOutOfStock ? '#ef4444' : '#10b981', fontWeight: 600, fontSize: '0.9rem' }}>
-              {isOutOfStock ? 'Out of Stock' : `${selectedVariant.inventory} available`}
-            </span>
-          )}
+          {/* Trust Guarantees */}
+          <div style={{ 
+            borderTop: '1px solid var(--color-border)', 
+            paddingTop: '1.75rem',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(3, 1fr)',
+            gap: '1rem',
+            textAlign: 'center',
+            fontSize: '0.82rem',
+            color: '#4b5563'
+          }}>
+            <div>
+              <div style={{ 
+                width: '42px', 
+                height: '42px', 
+                margin: '0 auto 0.5rem', 
+                background: '#f4f4f5', 
+                borderRadius: '50%', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                color: '#18181b' 
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="1" y="3" width="15" height="13"></rect>
+                  <polygon points="16 8 20 8 23 11 23 16 16 16 16 8"></polygon>
+                  <circle cx="5.5" cy="18.5" r="2.5"></circle>
+                  <circle cx="18.5" cy="18.5" r="2.5"></circle>
+                </svg>
+              </div>
+              <strong style={{ color: '#18181b' }}>Free Express</strong><br />Pan-India Delivery
+            </div>
+            <div>
+              <div style={{ 
+                width: '42px', 
+                height: '42px', 
+                margin: '0 auto 0.5rem', 
+                background: '#f4f4f5', 
+                borderRadius: '50%', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                color: '#18181b' 
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="8" r="7"></circle>
+                  <polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"></polyline>
+                </svg>
+              </div>
+              <strong style={{ color: '#18181b' }}>Silk Mark</strong><br />100% Certified
+            </div>
+            <div>
+              <div style={{ 
+                width: '42px', 
+                height: '42px', 
+                margin: '0 auto 0.5rem', 
+                background: '#f4f4f5', 
+                borderRadius: '50%', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center',
+                color: '#18181b' 
+              }}>
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="23 4 23 10 17 10"></polyline>
+                  <polyline points="1 20 1 14 7 14"></polyline>
+                  <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                </svg>
+              </div>
+              <strong style={{ color: '#18181b' }}>7-Day Exchange</strong><br />Hassle-Free
+            </div>
+          </div>
         </div>
-
-        <button
-          className="btn"
-          onClick={handleAddToCart}
-          disabled={!selectedVariant || isOutOfStock}
-          style={{
-            opacity: (!selectedVariant || isOutOfStock) ? 0.5 : 1,
-            cursor: (!selectedVariant || isOutOfStock) ? 'not-allowed' : 'pointer',
-            padding: '1rem',
-            fontSize: '1.1rem'
-          }}
-        >
-          {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
-        </button>
       </div>
     </div>
   );

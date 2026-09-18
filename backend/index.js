@@ -82,18 +82,56 @@ app.get('/api/categories', async (req, res) => {
   }
 });
 
-// Get all products (with optional category filter)
+// Get all states with product count
+app.get('/api/states', async (req, res) => {
+  try {
+    const states = await prisma.product.groupBy({
+      by: ['state'],
+      _count: {
+        id: true,
+      },
+      where: {
+        state: { not: null }
+      }
+    });
+    res.json(states.map(s => ({ state: s.state, count: s._count.id })));
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: 'Failed to fetch states' });
+  }
+});
+
+// Get all products (with optional filters: category, state, targetGroup, search, sort)
 app.get('/api/products', async (req, res) => {
   try {
-    const { category } = req.query;
+    const { category, state, targetGroup, demographic, search, sort } = req.query;
     
     const where = {};
-    if (category) {
+    if (category && category !== 'all') {
       where.category = { slug: category };
     }
+    if (state && state !== 'all') {
+      where.state = state;
+    }
+    const group = targetGroup || demographic;
+    if (group && group !== 'all') {
+      where.targetGroup = group.toUpperCase();
+    }
+    if (search) {
+      where.OR = [
+        { name: { contains: search } },
+        { description: { contains: search } },
+        { state: { contains: search } }
+      ];
+    }
+    
+    let orderBy = { createdAt: 'desc' };
+    if (sort === 'price-asc') orderBy = { basePrice: 'asc' };
+    if (sort === 'price-desc') orderBy = { basePrice: 'desc' };
     
     const products = await prisma.product.findMany({
       where,
+      orderBy,
       include: {
         category: true,
         variants: true,
