@@ -108,9 +108,9 @@ function Checkout() {
             </div>
             
             {/* Shipping Address */}
-            <div style={{ background: '#ffffff', padding: '1.75rem', borderRadius: '12px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
-              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', color: '#18181b' }}>
-                2. Shipping Address
+            <div style={{ background: '#ffffff', padding: '1.75rem', borderRadius: '14px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', color: 'var(--color-heading)' }}>
+                2. Shipping Destination
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <input required name="street" placeholder="House / Flat No., Street, Landmark" onChange={handleChange} style={inputStyle} />
@@ -121,13 +121,54 @@ function Checkout() {
                 </div>
               </div>
             </div>
+
+            {/* Payment Method Selector */}
+            <div style={{ background: '#ffffff', padding: '1.75rem', borderRadius: '14px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
+              <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '1.25rem', color: 'var(--color-heading)' }}>
+                3. Payment Method
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                {[
+                  { id: 'upi', label: 'UPI / QR Code', sub: 'Instant GPay, PhonePe, Paytm, BHIM', icon: '⚡' },
+                  { id: 'card', label: 'Credit / Debit Card', sub: 'Visa, MasterCard, RuPay (256-Bit SSL)', icon: '💳' },
+                  { id: 'netbanking', label: 'Net Banking', sub: 'All major Indian banks supported', icon: '🏛️' },
+                  { id: 'cod', label: 'Cash on Delivery (COD)', sub: 'Pay when your handloom arrives', icon: '📦' }
+                ].map((pm, i) => (
+                  <label 
+                    key={pm.id}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.85rem',
+                      padding: '0.85rem 1rem',
+                      borderRadius: '10px',
+                      border: i === 0 ? '2px solid var(--accent)' : '1px solid var(--color-border)',
+                      background: i === 0 ? 'var(--accent-light)' : '#ffffff',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <input 
+                      type="radio" 
+                      name="paymentMethod" 
+                      defaultChecked={i === 0} 
+                      style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
+                    />
+                    <span style={{ fontSize: '1.2rem' }}>{pm.icon}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--color-heading)' }}>{pm.label}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--color-muted)' }}>{pm.sub}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
           </form>
         </div>
         
         {/* Summary Card */}
         <div style={{ position: 'sticky', top: '6rem' }}>
           <div style={{ background: '#ffffff', padding: '2rem', borderRadius: '16px', border: '1px solid var(--color-border)', boxShadow: 'var(--shadow-sm)' }}>
-            <h3 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '1.25rem', color: '#18181b', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.75rem' }}>
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 800, marginBottom: '1.25rem', color: 'var(--color-heading)', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.75rem' }}>
               Order Review
             </h3>
 
@@ -135,7 +176,7 @@ function Checkout() {
               {cart.map(item => (
                 <div key={item.variant.id} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.9rem', color: '#4b5563' }}>
                   <span>{item.product.name} × {item.quantity}</span>
-                  <span style={{ fontWeight: 600, color: '#18181b' }}>
+                  <span style={{ fontWeight: 700, color: 'var(--color-heading)' }}>
                     ₹{((item.variant.priceOverride || item.product.basePrice) * item.quantity).toLocaleString('en-IN')}
                   </span>
                 </div>
@@ -144,18 +185,18 @@ function Checkout() {
 
             <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: '#4b5563' }}>
-                <span>Subtotal</span>
-                <span style={{ fontWeight: 600, color: '#18181b' }}>₹{cartTotal.toLocaleString('en-IN')}</span>
+                <span>Items Subtotal</span>
+                <span style={{ fontWeight: 700, color: 'var(--color-heading)' }}>₹{cartTotal.toLocaleString('en-IN')}</span>
               </div>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.95rem', color: '#4b5563' }}>
-                <span>Pan-India Delivery</span>
+                <span>Pan-India Express Delivery</span>
                 <span>{shipping === 0 ? <strong style={{ color: '#16a34a' }}>FREE</strong> : `₹${shipping}`}</span>
               </div>
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--color-border)', paddingTop: '1.25rem', marginBottom: '1.75rem' }}>
-              <span style={{ fontSize: '1.15rem', fontWeight: 700, color: '#18181b' }}>Total to Pay</span>
-              <span style={{ fontSize: '1.65rem', fontWeight: 800, color: '#18181b' }}>₹{finalTotal.toLocaleString('en-IN')}</span>
+              <span style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--color-heading)' }}>Total to Pay</span>
+              <span style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--color-heading)' }}>₹{finalTotal.toLocaleString('en-IN')}</span>
             </div>
             
             <button 
@@ -163,17 +204,17 @@ function Checkout() {
               form="checkout-form" 
               className="btn btn-primary" 
               disabled={loading}
-              style={{ width: '100%', padding: '0.9rem', fontSize: '1rem', opacity: loading ? 0.7 : 1 }}
+              style={{ width: '100%', padding: '0.95rem', fontSize: '1rem', opacity: loading ? 0.7 : 1 }}
             >
-              {loading ? 'Processing Order...' : 'Complete Payment (Demo UPI / Card) →'}
+              {loading ? 'Securing Your Handloom Order...' : 'Complete Order (Instant Confirmation) →'}
             </button>
 
-            <p style={{ marginTop: '1rem', fontSize: '0.78rem', color: '#6b7280', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
+            <p style={{ marginTop: '1rem', fontSize: '0.78rem', color: '#64748b', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem' }}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
                 <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
               </svg>
-              <span>256-Bit SSL Encrypted. Certified Artisan Weaves.</span>
+              <span>256-Bit Bank Grade SSL Encrypted. Certified Artisan Weaves.</span>
             </p>
           </div>
         </div>

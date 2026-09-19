@@ -291,7 +291,7 @@ function Cart() {
               </div>
             </div>
 
-            {/* Promo Code Input */}
+            {/* Promo Code Input & 1-Tap Chips */}
             <form onSubmit={handleApplyPromo} style={{ marginBottom: '1.5rem' }}>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
                 <input 
@@ -314,14 +314,45 @@ function Cart() {
                   Apply
                 </button>
               </div>
+
+              {/* 1-Tap Clickable Coupon Chips */}
+              <div className="coupon-chips-row">
+                <span 
+                  className="coupon-chip"
+                  onClick={() => {
+                    setPromoCode('FESTIVE10');
+                    const disc = cartTotal * 0.10;
+                    setDiscount(disc);
+                    setPromoMessage('10% Festive Handloom Discount applied!');
+                  }}
+                >
+                  <span>🏷️</span> FESTIVE10 (10% Off)
+                </span>
+                <span 
+                  className="coupon-chip"
+                  onClick={() => {
+                    setPromoCode('RAGYAI');
+                    const disc = Math.min(500, cartTotal * 0.15);
+                    setDiscount(disc);
+                    setPromoMessage('₹' + disc.toFixed(0) + ' Welcome Heritage Discount applied!');
+                  }}
+                >
+                  <span>✨</span> RAGYAI (₹500 Off)
+                </span>
+              </div>
+
               {promoMessage && (
                 <div style={{ 
-                  marginTop: '0.5rem', 
-                  fontSize: '0.8rem', 
-                  color: promoMessage.includes('Invalid') ? '#dc2626' : '#16a34a',
-                  fontWeight: 500
+                  marginTop: '0.65rem', 
+                  fontSize: '0.82rem', 
+                  color: discount > 0 ? '#15803d' : '#dc2626', 
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.35rem'
                 }}>
-                  {promoMessage}
+                  <span>{discount > 0 ? '✓' : '⚠️'}</span>
+                  <span>{promoMessage}</span>
                 </div>
               )}
             </form>

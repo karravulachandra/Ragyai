@@ -173,9 +173,19 @@ function CartDrawer() {
         
         {cart.length > 0 && (
           <div className="cart-footer">
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.85rem', fontWeight: 700, fontSize: '1.1rem', color: '#18181b' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem', fontWeight: 800, fontSize: '1.15rem', color: 'var(--color-heading)' }}>
               <span>Estimated Subtotal</span>
               <span>₹{cartTotal.toLocaleString('en-IN')}</span>
+            </div>
+
+            {/* 1-Tap Coupon Pill */}
+            <div style={{ marginBottom: '0.85rem' }}>
+              <span 
+                className="coupon-chip" 
+                style={{ cursor: 'default' }}
+              >
+                <span>🏷️</span> Use code <strong>FESTIVE10</strong> for 10% Off
+              </span>
             </div>
             
             <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '0.75rem' }}>
@@ -184,7 +194,7 @@ function CartDrawer() {
                 style={{ flex: 1, padding: '0.75rem', fontSize: '0.88rem' }} 
                 onClick={handleViewFullCart}
               >
-                View Full Cart
+                Bag Details
               </button>
               <button 
                 className="btn btn-primary" 
@@ -195,8 +205,8 @@ function CartDrawer() {
               </button>
             </div>
             
-            <p style={{ fontSize: '0.75rem', color: '#6b7280', textAlign: 'center', margin: 0 }}>
-              Taxes and shipping calculated at checkout • 7-day hassle-free exchange
+            <p style={{ fontSize: '0.74rem', color: '#64748b', textAlign: 'center', margin: 0 }}>
+              🔒 256-Bit SSL Encrypted • Silk Mark Certified • 7-Day Exchange
             </p>
           </div>
         )}

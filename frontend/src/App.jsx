@@ -23,73 +23,110 @@ import {
 import { Login, Signup } from './pages/Auth';
 import { CartProvider, CartContext } from './context/CartContext';
 import { AuthProvider, AuthContext } from './context/AuthContext';
+import { WishlistProvider, WishlistContext } from './context/WishlistContext';
+import SocialProofToast from './components/SocialProofToast';
+import MobileBottomBar from './components/MobileBottomBar';
 import './index.css';
 
-// Top Announcement Bar (Tones Fashion Style)
+// Top Announcement Bar (Luxury Indian Handloom Style)
 const AnnouncementBar = () => {
   return (
     <div className="announcement-bar">
-      <span><strong>Free Pan-India Express Delivery</strong> on Handloom Orders Over ₹1,999</span>
-      <span style={{ opacity: 0.5 }}>|</span>
-      <span>100% Authentic State Heritage Weaves</span>
-      <span style={{ opacity: 0.5 }}>|</span>
-      <span style={{ color: '#ff9933' }}>Use Code: FESTIVE10 for 10% Off</span>
+      <span>✨ <strong>Free Pan-India Express Delivery</strong> on Handloom Orders Over ₹1,999</span>
+      <span style={{ opacity: 0.4 }}>|</span>
+      <span>100% Silk Mark & Handloom Certified</span>
+      <span style={{ opacity: 0.4 }}>|</span>
+      <span style={{ color: '#f59e0b', fontWeight: 600 }}>Festival Code: FESTIVE10 (10% Off)</span>
     </div>
   );
 };
 
-// Sleek Sticky Header (Tones Fashion Style)
+// Sleek Luxury Sticky Header
 const Header = () => {
   const { cartCount, setIsCartOpen } = useContext(CartContext);
+  const { wishlistCount, toastMessage } = useContext(WishlistContext);
   const location = useLocation();
 
   const isActive = (path) => location.pathname === path;
 
   return (
-    <header className="header">
-      <Link to="/" className="logo">
-        <span>RAGYAI</span>
-        <span className="logo-sub">TRADITIONAL</span>
-      </Link>
-      
-      <nav style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
-        <Link to="/shop" className={`nav-link ${isActive('/shop') ? 'active' : ''}`}>All States</Link>
-        <Link to="/mens" className={`nav-link ${isActive('/mens') ? 'active' : ''}`}>Men</Link>
-        <Link to="/womens" className={`nav-link ${isActive('/womens') ? 'active' : ''}`}>Women</Link>
-        <Link to="/kids" className={`nav-link ${isActive('/kids') ? 'active' : ''}`}>Girls & Kids</Link>
-        <Link to="/seniors" className={`nav-link ${isActive('/seniors') ? 'active' : ''}`}>Grandparents</Link>
-        <Link to="/collections" className={`nav-link ${isActive('/collections') ? 'active' : ''}`}>Collections</Link>
-      </nav>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <Link to="/shop" style={{ color: 'var(--color-heading)', fontSize: '1.1rem', padding: '0.3rem' }} title="Search Attires">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <circle cx="11" cy="11" r="8"></circle>
-            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
-          </svg>
+    <>
+      {toastMessage && (
+        <div className="wishlist-toast-banner">
+          <span>✨</span>
+          <span>{toastMessage}</span>
+        </div>
+      )}
+      <header className="header">
+        <Link to="/" className="logo" style={{ textDecoration: 'none' }}>
+          <span style={{ fontFamily: 'var(--font-display)', letterSpacing: '2px', color: '#141416' }}>RAGYAI</span>
+          <span className="logo-sub" style={{ background: '#fffbeb', borderColor: '#fcd34d', color: '#b45309' }}>HERITAGE</span>
         </Link>
         
-        <Link to="/login" style={{ color: 'var(--color-heading)', fontSize: '1.1rem', padding: '0.3rem' }} title="My Account">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-            <circle cx="12" cy="7" r="4"></circle>
-          </svg>
-        </Link>
+        <nav style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <Link to="/shop" className={`nav-link ${isActive('/shop') ? 'active' : ''}`}>13 States</Link>
+          <Link to="/womens" className={`nav-link ${isActive('/womens') ? 'active' : ''}`}>Women</Link>
+          <Link to="/mens" className={`nav-link ${isActive('/mens') ? 'active' : ''}`}>Men</Link>
+          <Link to="/kids" className={`nav-link ${isActive('/kids') ? 'active' : ''}`}>Girls & Kids</Link>
+          <Link to="/seniors" className={`nav-link ${isActive('/seniors') ? 'active' : ''}`}>Grandparents</Link>
+          <Link to="/collections" className={`nav-link ${isActive('/collections') ? 'active' : ''}`}>Collections</Link>
+        </nav>
 
-        <button 
-          onClick={() => setIsCartOpen(true)} 
-          className="cart-pill"
-          title="Open Bag"
-        >
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-            <line x1="3" y1="6" x2="21" y2="6"></line>
-            <path d="M16 10a4 4 0 0 1-8 0"></path>
-          </svg>
-          <span>Bag ({cartCount})</span>
-        </button>
-      </div>
-    </header>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <Link to="/shop" style={{ color: 'var(--color-heading)', fontSize: '1.1rem', padding: '0.35rem', display: 'flex', alignItems: 'center' }} title="Search Attires">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+          </Link>
+          
+          <Link to="/wishlist" style={{ color: 'var(--color-heading)', fontSize: '1.1rem', padding: '0.35rem', display: 'flex', alignItems: 'center', position: 'relative' }} title="My Wishlist">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill={wishlistCount > 0 ? "rgba(220, 38, 38, 0.15)" : "none"} stroke={wishlistCount > 0 ? "#dc2626" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+            {wishlistCount > 0 && (
+              <span style={{ 
+                position: 'absolute', 
+                top: '-2px', 
+                right: '-4px', 
+                background: '#dc2626', 
+                color: '#ffffff', 
+                borderRadius: '50%', 
+                fontSize: '0.65rem', 
+                fontWeight: 700, 
+                width: '16px', 
+                height: '16px', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center' 
+              }}>
+                {wishlistCount}
+              </span>
+            )}
+          </Link>
+
+          <Link to="/login" style={{ color: 'var(--color-heading)', fontSize: '1.1rem', padding: '0.35rem', display: 'flex', alignItems: 'center' }} title="My Account">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+              <circle cx="12" cy="7" r="4"></circle>
+            </svg>
+          </Link>
+
+          <button 
+            onClick={() => setIsCartOpen(true)} 
+            className="cart-pill"
+            title="Open Bag"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <path d="M16 10a4 4 0 0 1-8 0"></path>
+            </svg>
+            <span>Bag ({cartCount})</span>
+          </button>
+        </div>
+      </header>
+    </>
   );
 };
 
@@ -260,9 +297,11 @@ const StoreLayout = ({ children }) => {
       <AnnouncementBar />
       <Header />
       <CartDrawer />
+      <SocialProofToast />
       <div style={{ flex: 1 }}>
         {children}
       </div>
+      <MobileBottomBar />
       <Footer />
     </div>
   );
@@ -281,34 +320,36 @@ function App() {
   return (
     <AuthProvider>
       <CartProvider>
-        <Router>
-          <Routes>
-            {/* Public Storefront Routes with Full Open Browsing */}
-            <Route path="/" element={<StoreLayout><Home /></StoreLayout>} />
-            <Route path="/shop" element={<StoreLayout><ShopAll /></StoreLayout>} />
-            <Route path="/mens" element={<StoreLayout><MensShop /></StoreLayout>} />
-            <Route path="/womens" element={<StoreLayout><WomensShop /></StoreLayout>} />
-            <Route path="/kids" element={<StoreLayout><KidsShop /></StoreLayout>} />
-            <Route path="/seniors" element={<StoreLayout><SeniorsShop /></StoreLayout>} />
-            <Route path="/collections" element={<StoreLayout><Collections /></StoreLayout>} />
-            <Route path="/product/:slug" element={<StoreLayout><ProductDetail /></StoreLayout>} />
-            <Route path="/cart" element={<StoreLayout><Cart /></StoreLayout>} />
-            <Route path="/checkout" element={<StoreLayout><Checkout /></StoreLayout>} />
-            <Route path="/about" element={<StoreLayout><About /></StoreLayout>} />
-            <Route path="/size-guide" element={<StoreLayout><SizeGuide /></StoreLayout>} />
-            <Route path="/contact" element={<StoreLayout><Contact /></StoreLayout>} />
-            <Route path="/returns" element={<StoreLayout><ReturnPolicy /></StoreLayout>} />
-            
-            {/* Authentication Pages */}
-            <Route path="/login" element={<Login />} />
-            <Route path="/signup" element={<Signup />} />
+        <WishlistProvider>
+          <Router>
+            <Routes>
+              {/* Public Storefront Routes with Full Open Browsing */}
+              <Route path="/" element={<StoreLayout><Home /></StoreLayout>} />
+              <Route path="/shop" element={<StoreLayout><ShopAll /></StoreLayout>} />
+              <Route path="/mens" element={<StoreLayout><MensShop /></StoreLayout>} />
+              <Route path="/womens" element={<StoreLayout><WomensShop /></StoreLayout>} />
+              <Route path="/kids" element={<StoreLayout><KidsShop /></StoreLayout>} />
+              <Route path="/seniors" element={<StoreLayout><SeniorsShop /></StoreLayout>} />
+              <Route path="/collections" element={<StoreLayout><Collections /></StoreLayout>} />
+              <Route path="/product/:slug" element={<StoreLayout><ProductDetail /></StoreLayout>} />
+              <Route path="/cart" element={<StoreLayout><Cart /></StoreLayout>} />
+              <Route path="/checkout" element={<StoreLayout><Checkout /></StoreLayout>} />
+              <Route path="/about" element={<StoreLayout><About /></StoreLayout>} />
+              <Route path="/size-guide" element={<StoreLayout><SizeGuide /></StoreLayout>} />
+              <Route path="/contact" element={<StoreLayout><Contact /></StoreLayout>} />
+              <Route path="/returns" element={<StoreLayout><ReturnPolicy /></StoreLayout>} />
+              <Route path="/wishlist" element={<StoreLayout><Wishlist /></StoreLayout>} />
+              
+              {/* Authentication Pages */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
 
-            {/* Authenticated User Pages */}
-            <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/wishlist" element={<ProtectedRoute><Wishlist /></ProtectedRoute>} />
-            <Route path="/order-confirmation" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
-          </Routes>
-        </Router>
+              {/* Authenticated User Pages */}
+              <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+              <Route path="/order-confirmation" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
+            </Routes>
+          </Router>
+        </WishlistProvider>
       </CartProvider>
     </AuthProvider>
   );

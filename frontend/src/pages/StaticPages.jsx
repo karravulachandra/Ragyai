@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { useState, useEffect, useContext } from 'react';
 import { CartContext } from '../context/CartContext';
+import { WishlistContext } from '../context/WishlistContext';
+import QuickViewModal from '../components/QuickViewModal';
 import { FALLBACK_PRODUCTS } from '../data/fallbackProducts';
 
 const INDIAN_STATES = [
@@ -43,7 +45,9 @@ export const TraditionalCatalog = ({
   const [sortBy, setSortBy] = useState('featured');
   const [viewMode, setViewMode] = useState('state-wise'); // 'state-wise' or 'grid'
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
+  const [quickViewProduct, setQuickViewProduct] = useState(null);
   const { addToCart, setIsCartOpen } = useContext(CartContext);
+  const { toggleWishlist, isInWishlist } = useContext(WishlistContext);
   const [addedSlug, setAddedSlug] = useState(null);
 
   useEffect(() => {
@@ -158,6 +162,7 @@ export const TraditionalCatalog = ({
     const hasInventory = product.variants?.some(v => v.inventory > 0) ?? true;
     const mrp = Math.round(product.basePrice * 1.25);
     const discountPercent = Math.round(((mrp - product.basePrice) / mrp) * 100);
+    const isWishlisted = isInWishlist(product.id);
 
     return (
       <div 
@@ -165,6 +170,32 @@ export const TraditionalCatalog = ({
         className="product-card" 
         style={{ animationDelay: `${Math.min(0.8, 0.04 * index)}s` }}
       >
+        {/* Floating Quick Action Overlay (Wishlist & Quick View) */}
+        <div className="card-action-overlay">
+          <button
+            className={`card-icon-btn ${isWishlisted ? 'wishlist-active' : ''}`}
+            onClick={() => toggleWishlist(product)}
+            title={isWishlisted ? "Remove from Wishlist" : "Add to Wishlist"}
+            aria-label="Wishlist toggle"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill={isWishlisted ? "#dc2626" : "none"} stroke={isWishlisted ? "#dc2626" : "currentColor"} strokeWidth="2.2">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+            </svg>
+          </button>
+
+          <button
+            className="card-icon-btn"
+            onClick={() => setQuickViewProduct(product)}
+            title="Quick Preview"
+            aria-label="Quick View"
+          >
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+              <circle cx="12" cy="12" r="3"></circle>
+            </svg>
+          </button>
+        </div>
+
         <Link to={`/product/${product.slug}`} style={{ display: 'block', textDecoration: 'none' }}>
           <div className="product-image-placeholder">
             <img 
@@ -198,11 +229,12 @@ export const TraditionalCatalog = ({
               </div>
             )}
 
-            {/* In Stock Badge */}
+            {/* Stock Urgency Badge */}
             <div style={{ 
               position: 'absolute', 
               top: '0.75rem', 
-              right: '0.75rem', 
+              left: product.state ? 'auto' : '0.75rem',
+              right: '3.25rem', 
               background: hasInventory ? '#dcfce7' : '#fee2e2', 
               color: hasInventory ? '#15803d' : '#b91c1c', 
               padding: '0.2rem 0.55rem', 
@@ -218,7 +250,7 @@ export const TraditionalCatalog = ({
 
           <div className="product-category" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <span>{product.category?.name}</span>
-            {product.region && <span style={{ color: '#9ca3af', fontSize: '0.7rem' }}>{product.region} India</span>}
+            <span style={{ color: '#b45309', fontSize: '0.72rem', fontWeight: 700 }}>★ 4.9 (38)</span>
           </div>
 
           <h3 className="product-title" style={{ minHeight: '2.8rem' }}>
@@ -226,7 +258,7 @@ export const TraditionalCatalog = ({
           </h3>
 
           <p style={{ 
-            color: '#6b7280', 
+            color: '#64748b', 
             fontSize: '0.84rem', 
             lineHeight: 1.5, 
             marginBottom: '0.85rem', 
@@ -239,10 +271,10 @@ export const TraditionalCatalog = ({
           </p>
 
           <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '1.25rem' }}>
-            <span className="product-price" style={{ margin: 0 }}>
+            <span className="product-price" style={{ margin: 0, fontWeight: 800 }}>
               ₹{product.basePrice.toLocaleString('en-IN')}
             </span>
-            <span style={{ fontSize: '0.85rem', color: '#9ca3af', textDecoration: 'line-through' }}>
+            <span style={{ fontSize: '0.85rem', color: '#94a3b8', textDecoration: 'line-through' }}>
               ₹{mrp.toLocaleString('en-IN')}
             </span>
             <span style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 700, background: '#dcfce7', padding: '1px 6px', borderRadius: '4px' }}>
@@ -259,11 +291,14 @@ export const TraditionalCatalog = ({
           >
             {addedSlug === product.slug ? '✓ In Bag!' : '+ Add to Bag'}
           </button>
-          <Link to={`/product/${product.slug}`} style={{ textDecoration: 'none' }}>
-            <button className="btn" style={{ padding: '0.65rem 1rem', fontSize: '0.88rem', width: 'auto' }}>
-              Details
-            </button>
-          </Link>
+          <button 
+            className="btn" 
+            style={{ padding: '0.65rem 0.95rem', fontSize: '0.88rem', width: 'auto' }}
+            onClick={() => setQuickViewProduct(product)}
+            title="Quick Drape Preview"
+          >
+            Preview
+          </button>
         </div>
       </div>
     );
@@ -704,6 +739,14 @@ export const TraditionalCatalog = ({
           {sortedProducts.map((product, idx) => renderProductCard(product, idx))}
         </div>
       )}
+
+      {/* Quick View Modal */}
+      {quickViewProduct && (
+        <QuickViewModal 
+          product={quickViewProduct} 
+          onClose={() => setQuickViewProduct(null)} 
+        />
+      )}
     </div>
   );
 };
@@ -884,12 +927,147 @@ export const Dashboard = () => (
   </div>
 );
 
-export const Wishlist = () => (
-  <div className="container" style={{ padding: '5rem 1.5rem', textAlign: 'center', maxWidth: '600px' }}>
-    <h1 style={{ fontSize: '2.6rem', fontWeight: 800, marginBottom: '0.5rem', color: '#18181b' }}>Wishlist</h1>
-    <p style={{ color: '#6b7280', marginBottom: '2.5rem' }}>Save your favorite state weaves for later celebrations.</p>
-    <div style={{ padding: '3.5rem', background: '#f8f9fa', border: '1px solid #e5e7eb', borderRadius: '12px' }}>
-      Your wishlist is currently empty.
+export const Wishlist = () => {
+  const { wishlist, removeFromWishlist } = useContext(WishlistContext);
+  const { addToCart, setIsCartOpen } = useContext(CartContext);
+  const [movingId, setMovingId] = useState(null);
+
+  const handleMoveToBag = (product) => {
+    if (!product.variants || product.variants.length === 0) return;
+    const variant = product.variants[0];
+    addToCart(product, variant, 1);
+    setMovingId(product.id);
+    setIsCartOpen(true);
+    setTimeout(() => {
+      setMovingId(null);
+      removeFromWishlist(product.id);
+    }, 450);
+  };
+
+  if (wishlist.length === 0) {
+    return (
+      <div className="container" style={{ padding: '6rem 1.5rem', textAlign: 'center', maxWidth: '640px' }}>
+        <div style={{
+          width: '72px',
+          height: '72px',
+          margin: '0 auto 1.5rem',
+          background: '#fef2f2',
+          color: '#dc2626',
+          borderRadius: '50%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center'
+        }}>
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+          </svg>
+        </div>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2.5rem', fontWeight: 800, marginBottom: '0.75rem', color: 'var(--color-heading)' }}>
+          Your Wishlist is Empty
+        </h1>
+        <p style={{ color: 'var(--color-muted)', marginBottom: '2.5rem', fontSize: '1.05rem', lineHeight: 1.6 }}>
+          Save your favorite traditional sarees, royal sherwanis, and kids pattu outfits from across India for upcoming weddings and festivals.
+        </p>
+        <Link to="/shop" className="btn btn-primary" style={{ padding: '0.9rem 2.25rem', fontSize: '1rem' }}>
+          Explore 13 State Collections &rarr;
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container" style={{ padding: '3.5rem 1.5rem 6rem' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '2.5rem', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <span style={{ fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '2px', color: 'var(--accent)', fontWeight: 700 }}>
+            Saved Curations
+          </span>
+          <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2.4rem', fontWeight: 800, color: 'var(--color-heading)', margin: '0.25rem 0 0' }}>
+            My Wishlist ({wishlist.length})
+          </h1>
+        </div>
+        <Link to="/shop" style={{ color: 'var(--accent)', fontWeight: 600, fontSize: '0.92rem' }}>
+          + Browse More Attires
+        </Link>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '1.75rem' }}>
+        {wishlist.map(product => {
+          const mrp = Math.round(product.basePrice * 1.25);
+          return (
+            <div 
+              key={product.id} 
+              className="product-card" 
+              style={{ position: 'relative', display: 'flex', flexDirection: 'column' }}
+            >
+              <button
+                onClick={() => removeFromWishlist(product.id)}
+                style={{
+                  position: 'absolute',
+                  top: '0.75rem',
+                  right: '0.75rem',
+                  background: 'rgba(255, 255, 255, 0.9)',
+                  border: '1px solid rgba(0, 0, 0, 0.08)',
+                  borderRadius: '50%',
+                  width: '32px',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  color: '#dc2626',
+                  zIndex: 3
+                }}
+                title="Remove from Wishlist"
+              >
+                &times;
+              </button>
+
+              <Link to={`/product/${product.slug}`} style={{ textDecoration: 'none', display: 'block' }}>
+                <div className="product-image-placeholder">
+                  <img 
+                    src={product.imageUrl || '/kanjeevaram_saree.png'} 
+                    alt={product.name} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                  {product.state && (
+                    <div className="badge-state">
+                      <span>{product.state}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="product-category">{product.category?.name}</div>
+                <h3 className="product-title" style={{ minHeight: '2.8rem' }}>{product.name}</h3>
+
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                  <span className="product-price" style={{ margin: 0, fontWeight: 800 }}>
+                    ₹{product.basePrice.toLocaleString('en-IN')}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: '#94a3b8', textDecoration: 'line-through' }}>
+                    ₹{mrp.toLocaleString('en-IN')}
+                  </span>
+                </div>
+              </Link>
+
+              <div style={{ marginTop: 'auto', display: 'flex', gap: '0.5rem' }}>
+                <button
+                  className="btn btn-primary"
+                  style={{ flex: 1, padding: '0.65rem', fontSize: '0.86rem' }}
+                  onClick={() => handleMoveToBag(product)}
+                >
+                  {movingId === product.id ? '✓ Moved!' : '+ Move to Bag'}
+                </button>
+                <Link to={`/product/${product.slug}`} style={{ textDecoration: 'none' }}>
+                  <button className="btn" style={{ padding: '0.65rem 0.85rem', fontSize: '0.86rem' }}>
+                    Details
+                  </button>
+                </Link>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
-  </div>
-);
+  );
+};
