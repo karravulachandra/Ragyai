@@ -1,9 +1,10 @@
 import { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CartContext } from '../context/CartContext';
+import { api } from '../services/api';
 
 function Checkout() {
-  const { cart, cartTotal } = useContext(CartContext);
+  const { cart, cartTotal, clearCart } = useContext(CartContext);
   const navigate = useNavigate();
   
   const [formData, setFormData] = useState({
@@ -17,6 +18,7 @@ function Checkout() {
     country: 'India'
   });
   
+  const [paymentMethod, setPaymentMethod] = useState('UPI');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -33,35 +35,20 @@ function Checkout() {
     setError('');
     
     try {
-      const res = await fetch('http://localhost:3001/api/checkout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          items: cart.map(item => ({ variantId: item.variant.id, quantity: item.quantity })),
-          customer: { name: formData.name, email: formData.email, phone: formData.phone },
-          shipping: { 
-            street: formData.street, city: formData.city, 
-            state: formData.state, zip: formData.zip, country: formData.country 
-          }
-        })
+      const order = await api.createCheckout({
+        items: cart,
+        customer: { name: formData.name, email: formData.email, phone: formData.phone },
+        shipping: { 
+          street: formData.street, city: formData.city, 
+          state: formData.state, zip: formData.zip, country: formData.country 
+        },
+        paymentMethod
       });
       
-      if (res.ok) {
-        const data = await res.json();
-        await fetch('http://localhost:3001/api/webhooks/payment', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ orderId: data.orderId })
-        });
-      }
-      
-      localStorage.removeItem('cart');
-      navigate('/order-confirmation');
-      
+      clearCart();
+      navigate(`/order-confirmation?orderId=${order.id}`);
     } catch (err) {
-      // Standalone/static demo fallback
-      localStorage.removeItem('cart');
-      navigate('/order-confirmation');
+      setError(err.message || 'Checkout could not be processed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -142,15 +129,18 @@ function Checkout() {
                       gap: '0.85rem',
                       padding: '0.85rem 1rem',
                       borderRadius: '10px',
-                      border: i === 0 ? '2px solid var(--accent)' : '1px solid var(--color-border)',
-                      background: i === 0 ? 'var(--accent-light)' : '#ffffff',
-                      cursor: 'pointer'
+                      border: paymentMethod === pm.id ? '2px solid var(--accent)' : '1px solid var(--color-border)',
+                      background: paymentMethod === pm.id ? 'var(--accent-light)' : '#ffffff',
+                      cursor: 'pointer',
+                      transition: 'var(--transition)'
                     }}
+                    onClick={() => setPaymentMethod(pm.id)}
                   >
                     <input 
                       type="radio" 
                       name="paymentMethod" 
-                      defaultChecked={i === 0} 
+                      checked={paymentMethod === pm.id}
+                      onChange={() => setPaymentMethod(pm.id)}
                       style={{ accentColor: 'var(--accent)', cursor: 'pointer' }}
                     />
                     <span style={{ fontSize: '1.2rem' }}>{pm.icon}</span>

@@ -1,4 +1,5 @@
 import { createContext, useState, useEffect } from 'react';
+import { api } from '../services/api';
 
 export const AuthContext = createContext();
 
@@ -8,44 +9,34 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     const fetchMe = async () => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        // Mock user data to bypass backend
-        setUser({ id: 'dummy-123', email: 'testuser@ragyai.com', name: 'Test User', role: 'ADMIN' });
+      try {
+        const profile = await api.getProfile();
+        if (profile) setUser(profile);
+      } catch (err) {
+        console.warn('Failed to load user profile:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     
     fetchMe();
-    
   }, []);
 
   const login = async (email, password) => {
-    // Mock login to bypass backend completely
-    const dummyUser = { id: 'dummy-123', email, name: 'Test User', role: 'ADMIN' };
-    localStorage.setItem('token', 'dummy-token-123');
-    setUser(dummyUser);
-    return dummyUser;
+    const loggedUser = await api.login(email, password);
+    setUser(loggedUser);
+    return loggedUser;
   };
 
   const register = async (name, email, password) => {
-    const res = await fetch('http://localhost:3001/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, password })
-    });
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error);
-    
-    localStorage.setItem('token', data.token);
-    setUser(data);
-    return data;
+    const newUser = await api.register(name, email, password);
+    setUser(newUser);
+    return newUser;
   };
 
   const logout = async () => {
-    localStorage.removeItem('token');
+    await api.logout();
     setUser(null);
-    await fetch('http://localhost:3001/api/auth/logout', { method: 'POST' });
   };
 
   return (

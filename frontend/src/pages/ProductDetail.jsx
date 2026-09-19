@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { CartContext } from '../context/CartContext';
 import { WishlistContext } from '../context/WishlistContext';
 import { FALLBACK_PRODUCTS } from '../data/fallbackProducts';
+import { api } from '../services/api';
 
 function ProductDetail() {
   const { slug } = useParams();
@@ -44,11 +45,12 @@ function ProductDetail() {
 
     const fetchProduct = async () => {
       try {
-        const res = await fetch(`http://127.0.0.1:3001/api/products/${slug}`, { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
+        const data = await api.getProductBySlug(slug);
+        if (data) {
           setProduct(data);
           initSelection(data);
+        } else if (!initial) {
+          setError("Product not found");
         }
       } catch (err) {
         if (!initial) setError("Product not found");

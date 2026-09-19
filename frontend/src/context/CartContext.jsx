@@ -39,6 +39,11 @@ export const CartProvider = ({ children }) => {
     ));
   };
 
+  const clearCart = () => {
+    setCart([]);
+    localStorage.removeItem('cart');
+  };
+
   const cartTotal = cart.reduce((total, item) => {
     const price = item.variant.priceOverride || item.product.basePrice;
     return total + (price * item.quantity);
@@ -47,7 +52,7 @@ export const CartProvider = ({ children }) => {
   const cartCount = cart.reduce((count, item) => count + item.quantity, 0);
 
   return (
-    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, cartTotal, cartCount, isCartOpen, setIsCartOpen }}>
+    <CartContext.Provider value={{ cart, addToCart, removeFromCart, updateQuantity, clearCart, cartTotal, cartCount, isCartOpen, setIsCartOpen }}>
       {children}
     </CartContext.Provider>
   );

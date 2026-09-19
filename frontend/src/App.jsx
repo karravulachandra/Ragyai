@@ -1,5 +1,6 @@
-import { BrowserRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
-import { useContext, useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link, useLocation, useNavigate, Navigate } from 'react-router-dom';
+import { useContext, useState, useEffect, useRef } from 'react';
+import { api } from './services/api';
 import Home from './pages/Home';
 import ProductDetail from './pages/ProductDetail';
 import Checkout from './pages/Checkout';
@@ -41,13 +42,48 @@ const AnnouncementBar = () => {
   );
 };
 
-// Sleek Luxury Sticky Header
+// Sleek Luxury Sticky Header with Live Search & Dynamic Account
 const Header = () => {
   const { cartCount, setIsCartOpen } = useContext(CartContext);
   const { wishlistCount, toastMessage } = useContext(WishlistContext);
+  const { user } = useContext(AuthContext);
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const searchInputRef = useRef(null);
 
   const isActive = (path) => location.pathname === path;
+
+  // Real-time live search debounce
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setSearchResults([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      const results = await api.getProducts({ search: searchQuery.trim() });
+      setSearchResults(results.slice(0, 6));
+    }, 200);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isSearchOpen]);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      navigate(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
+      setIsSearchOpen(false);
+      setSearchQuery('');
+    }
+  };
 
   return (
     <>
@@ -57,7 +93,7 @@ const Header = () => {
           <span>{toastMessage}</span>
         </div>
       )}
-      <header className="header">
+      <header className="header" style={{ position: 'relative' }}>
         <Link to="/" className="logo" style={{ textDecoration: 'none' }}>
           <span style={{ fontFamily: 'var(--font-display)', letterSpacing: '2px', color: '#141416' }}>RAGYAI</span>
           <span className="logo-sub" style={{ background: '#fffbeb', borderColor: '#fcd34d', color: '#b45309' }}>HERITAGE</span>
@@ -73,12 +109,26 @@ const Header = () => {
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
-          <Link to="/shop" style={{ color: 'var(--color-heading)', fontSize: '1.1rem', padding: '0.35rem', display: 'flex', alignItems: 'center' }} title="Search Attires">
+          {/* Live Search Trigger Button */}
+          <button 
+            onClick={() => setIsSearchOpen(!isSearchOpen)} 
+            style={{ 
+              color: isSearchOpen ? 'var(--accent)' : 'var(--color-heading)', 
+              fontSize: '1.1rem', 
+              padding: '0.45rem', 
+              display: 'flex', 
+              alignItems: 'center',
+              background: isSearchOpen ? 'var(--accent-light)' : 'transparent',
+              borderRadius: '50%',
+              transition: 'var(--transition)'
+            }} 
+            title="Search Traditional Handlooms"
+          >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <circle cx="11" cy="11" r="8"></circle>
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
-          </Link>
+          </button>
           
           <Link to="/wishlist" style={{ color: 'var(--color-heading)', fontSize: '1.1rem', padding: '0.35rem', display: 'flex', alignItems: 'center', position: 'relative' }} title="My Wishlist">
             <svg width="20" height="20" viewBox="0 0 24 24" fill={wishlistCount > 0 ? "rgba(220, 38, 38, 0.15)" : "none"} stroke={wishlistCount > 0 ? "#dc2626" : "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -105,12 +155,41 @@ const Header = () => {
             )}
           </Link>
 
-          <Link to="/login" style={{ color: 'var(--color-heading)', fontSize: '1.1rem', padding: '0.35rem', display: 'flex', alignItems: 'center' }} title="My Account">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
-          </Link>
+          {/* Dynamic Account Link */}
+          {user ? (
+            <Link 
+              to="/dashboard" 
+              style={{ 
+                color: 'var(--color-heading)', 
+                fontSize: '0.82rem', 
+                fontWeight: 700, 
+                padding: '0.35rem 0.65rem', 
+                borderRadius: '100px', 
+                background: 'var(--bg-body)', 
+                border: '1px solid var(--color-border)', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '0.45rem', 
+                textDecoration: 'none' 
+              }} 
+              title="My Account Dashboard"
+            >
+              <span style={{ maxWidth: '85px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {user.name || user.email.split('@')[0]}
+              </span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </Link>
+          ) : (
+            <Link to="/login" style={{ color: 'var(--color-heading)', fontSize: '1.1rem', padding: '0.35rem', display: 'flex', alignItems: 'center' }} title="Sign In">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            </Link>
+          )}
 
           <button 
             onClick={() => setIsCartOpen(true)} 
@@ -125,6 +204,158 @@ const Header = () => {
             <span>Bag ({cartCount})</span>
           </button>
         </div>
+
+        {/* Live Interactive Search Dropdown Bar */}
+        {isSearchOpen && (
+          <div style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            background: '#ffffff',
+            borderBottom: '1px solid var(--color-border)',
+            boxShadow: 'var(--shadow-xl)',
+            zIndex: 100,
+            padding: '1.25rem 2rem',
+            animation: 'fadeInUp 0.2s ease-out'
+          }}>
+            <div className="container" style={{ maxWidth: '850px' }}>
+              <form onSubmit={handleSearchSubmit} style={{ display: 'flex', gap: '0.75rem', alignItems: 'center', marginBottom: '1rem' }}>
+                <div style={{ position: 'relative', flex: 1 }}>
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search 52 authentic ensembles: 'Kanjeevaram', 'Patan Patola', 'Pashmina', 'Dhoti'..."
+                    style={{
+                      width: '100%',
+                      padding: '0.85rem 1.25rem 0.85rem 2.85rem',
+                      borderRadius: '12px',
+                      border: '1.5px solid var(--accent)',
+                      fontSize: '0.98rem',
+                      fontFamily: 'var(--font-family)',
+                      outline: 'none',
+                      background: 'var(--bg-body)'
+                    }}
+                  />
+                  <span style={{ position: 'absolute', left: '1rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--accent)' }}>
+                    🔍
+                  </span>
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      style={{ position: 'absolute', right: '1rem', top: '50%', transform: 'translateY(-50%)', background: 'none', color: '#94a3b8', fontSize: '1rem', cursor: 'pointer' }}
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <button type="submit" className="btn btn-primary" style={{ padding: '0.85rem 1.75rem', fontSize: '0.9rem' }}>
+                  Search
+                </button>
+                <button 
+                  type="button" 
+                  onClick={() => setIsSearchOpen(false)}
+                  style={{ background: 'none', border: 'none', fontSize: '1.25rem', color: '#64748b', cursor: 'pointer', padding: '0.5rem' }}
+                  title="Close Search"
+                >
+                  ✕
+                </button>
+              </form>
+
+              {/* Quick Search Chips */}
+              <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap', marginBottom: searchResults.length > 0 ? '1rem' : '0' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--color-muted)', textTransform: 'uppercase' }}>Trending Weaves:</span>
+                {['Kanjeevaram', 'Patola', 'Kasavu', 'Bandhani', 'Pashmina', 'Nauvari'].map(chip => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => {
+                      setSearchQuery(chip);
+                      navigate(`/shop?search=${encodeURIComponent(chip)}`);
+                      setIsSearchOpen(false);
+                    }}
+                    style={{
+                      background: 'var(--bg-body)',
+                      border: '1px solid var(--color-border)',
+                      borderRadius: '100px',
+                      padding: '0.25rem 0.75rem',
+                      fontSize: '0.78rem',
+                      color: 'var(--color-heading)',
+                      cursor: 'pointer',
+                      fontWeight: 600
+                    }}
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+
+              {/* Live Search Suggestions Dropdown */}
+              {searchResults.length > 0 && (
+                <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1rem' }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--color-muted)', marginBottom: '0.65rem', textTransform: 'uppercase' }}>
+                    Matching Traditional Ensembles ({searchResults.length})
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '0.75rem' }}>
+                    {searchResults.map((item) => (
+                      <div
+                        key={item.slug}
+                        onClick={() => {
+                          navigate(`/product/${item.slug}`);
+                          setIsSearchOpen(false);
+                          setSearchQuery('');
+                        }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.75rem',
+                          padding: '0.6rem 0.85rem',
+                          borderRadius: '10px',
+                          border: '1px solid var(--color-border)',
+                          background: 'var(--bg-body)',
+                          cursor: 'pointer',
+                          transition: 'var(--transition)'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--accent)';
+                          e.currentTarget.style.background = '#ffffff';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.borderColor = 'var(--color-border)';
+                          e.currentTarget.style.background = 'var(--bg-body)';
+                        }}
+                      >
+                        {item.imageUrl && (
+                          <img src={item.imageUrl} alt={item.name} style={{ width: '40px', height: '40px', objectFit: 'cover', borderRadius: '6px' }} />
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--color-heading)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {item.name}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--color-muted)' }}>
+                            {item.state} • ₹{item.basePrice.toLocaleString('en-IN')}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <div style={{ textAlign: 'center', marginTop: '0.85rem' }}>
+                    <button
+                      type="button"
+                      onClick={handleSearchSubmit}
+                      style={{ background: 'none', border: 'none', color: 'var(--accent)', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer' }}
+                    >
+                      View all results for "{searchQuery}" &rarr;
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </header>
     </>
   );
@@ -346,7 +577,7 @@ function App() {
 
               {/* Authenticated User Pages */}
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/order-confirmation" element={<ProtectedRoute><OrderConfirmation /></ProtectedRoute>} />
+              <Route path="/order-confirmation" element={<StoreLayout><OrderConfirmation /></StoreLayout>} />
             </Routes>
           </Router>
         </WishlistProvider>

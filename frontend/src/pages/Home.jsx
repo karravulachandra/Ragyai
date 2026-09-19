@@ -4,6 +4,7 @@ import { CartContext } from '../context/CartContext';
 import { WishlistContext } from '../context/WishlistContext';
 import QuickViewModal from '../components/QuickViewModal';
 import { FALLBACK_PRODUCTS } from '../data/fallbackProducts';
+import { api } from '../services/api';
 
 const STATE_RIBBON = [
   { name: 'Tamil Nadu', weave: 'Kanjeevaram Silk', color: '#991b1b', icon: '🥻' },
@@ -78,11 +79,8 @@ function Home() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const res = await fetch('http://127.0.0.1:3001/api/products', { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) setProducts(data);
-        }
+        const data = await api.getProducts();
+        if (Array.isArray(data) && data.length > 0) setProducts(data);
       } catch (error) {
         // Fallback already pre-loaded
       }
@@ -266,7 +264,7 @@ function Home() {
             {STATE_RIBBON.map((st) => (
               <Link 
                 key={st.name} 
-                to="/shop" 
+                to={`/shop?state=${encodeURIComponent(st.name)}`} 
                 style={{ textDecoration: 'none', flexShrink: 0 }}
               >
                 <div style={{

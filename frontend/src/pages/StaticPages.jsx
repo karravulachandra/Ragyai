@@ -1,9 +1,11 @@
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useState, useEffect, useContext } from 'react';
 import { CartContext } from '../context/CartContext';
 import { WishlistContext } from '../context/WishlistContext';
+import { AuthContext } from '../context/AuthContext';
 import QuickViewModal from '../components/QuickViewModal';
 import { FALLBACK_PRODUCTS } from '../data/fallbackProducts';
+import { api } from '../services/api';
 
 const INDIAN_STATES = [
   'All States',
@@ -35,14 +37,20 @@ export const TraditionalCatalog = ({
   pageTitle = 'Indian States Traditional Dresses', 
   pageSubtitle = 'Explore authentic state-wise handwoven traditional attire for Men, Women, Kids, and Grandparents across India.' 
 }) => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const paramState = searchParams.get('state');
+  const paramDemographic = searchParams.get('demographic');
+  const paramSearch = searchParams.get('search');
+  const paramSort = searchParams.get('sort');
+
   const [products, setProducts] = useState(FALLBACK_PRODUCTS);
   const [loading, setLoading] = useState(false);
-  const [selectedDemographic, setSelectedDemographic] = useState(initialDemographic);
-  const [selectedState, setSelectedState] = useState('All States');
+  const [selectedDemographic, setSelectedDemographic] = useState(paramDemographic || initialDemographic);
+  const [selectedState, setSelectedState] = useState(paramState || 'All States');
   const [priceRange, setPriceRange] = useState('ALL'); // 'ALL', 'UNDER_5000', '5000_10000', 'ABOVE_10000'
   const [onlyInStock, setOnlyInStock] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('featured');
+  const [searchQuery, setSearchQuery] = useState(paramSearch || '');
+  const [sortBy, setSortBy] = useState(paramSort || 'featured');
   const [viewMode, setViewMode] = useState('state-wise'); // 'state-wise' or 'grid'
   const [isFilterDrawerOpen, setIsFilterDrawerOpen] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState(null);
@@ -50,20 +58,44 @@ export const TraditionalCatalog = ({
   const { toggleWishlist, isInWishlist } = useContext(WishlistContext);
   const [addedSlug, setAddedSlug] = useState(null);
 
+  // Sync state if URL query params change (e.g. from state ribbon links)
+  useEffect(() => {
+    if (paramState && paramState !== selectedState) setSelectedState(paramState);
+    if (paramDemographic && paramDemographic !== selectedDemographic) setSelectedDemographic(paramDemographic);
+    if (paramSearch !== null && paramSearch !== searchQuery) setSearchQuery(paramSearch);
+    if (paramSort && paramSort !== sortBy) setSortBy(paramSort);
+  }, [paramState, paramDemographic, paramSearch, paramSort]);
+
+  // Dynamic products fetch
   useEffect(() => {
     const fetchProducts = async () => {
+      setLoading(true);
       try {
-        const res = await fetch('http://127.0.0.1:3001/api/products', { cache: 'no-store' });
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data) && data.length > 0) setProducts(data);
-        }
+        const data = await api.getProducts({
+          state: selectedState,
+          demographic: selectedDemographic,
+          search: searchQuery,
+          sort: sortBy
+        });
+        if (Array.isArray(data) && data.length > 0) setProducts(data);
       } catch (error) {
-        // Silently use FALLBACK_PRODUCTS for offline / static CDN hosting
+        // Silently use fallback
+      } finally {
+        setLoading(false);
       }
     };
     fetchProducts();
-  }, []);
+  }, [selectedState, selectedDemographic, searchQuery, sortBy]);
+
+  const updateParam = (key, val) => {
+    const nextParams = new URLSearchParams(searchParams);
+    if (!val || val === 'All States' || val === 'ALL' || val === '') {
+      nextParams.delete(key);
+    } else {
+      nextParams.set(key, val);
+    }
+    setSearchParams(nextParams);
+  };
 
   // Filter products locally for instant, zero-latency responsiveness
   const filteredProducts = products.filter(p => {
@@ -343,7 +375,10 @@ export const TraditionalCatalog = ({
             <button
               key={tab.id}
               className={`demo-tab-btn ${selectedDemographic === tab.id ? 'active' : ''}`}
-              onClick={() => setSelectedDemographic(tab.id)}
+              onClick={() => {
+                setSelectedDemographic(tab.id);
+                updateParam('demographic', tab.id);
+              }}
             >
               <span>{tab.label}</span>
               <span style={{ 
@@ -390,7 +425,10 @@ export const TraditionalCatalog = ({
           {/* Quick State Dropdown */}
           <select 
             value={selectedState} 
-            onChange={(e) => setSelectedState(e.target.value)}
+            onChange={(e) => {
+              setSelectedState(e.target.value);
+              updateParam('state', e.target.value);
+            }}
             className="sort-select"
             title="Filter by State"
           >
@@ -427,10 +465,16 @@ export const TraditionalCatalog = ({
             type="text" 
             placeholder="Search weaves, dhotis, sarees..." 
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              updateParam('search', e.target.value);
+            }}
           />
           {searchQuery && (
-            <button className="search-clear-btn" onClick={() => setSearchQuery('')}>&times;</button>
+            <button className="search-clear-btn" onClick={() => {
+              setSearchQuery('');
+              updateParam('search', '');
+            }}>&times;</button>
           )}
         </div>
 
@@ -470,7 +514,10 @@ export const TraditionalCatalog = ({
           <select 
             className="sort-select"
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(e) => {
+              setSortBy(e.target.value);
+              updateParam('sort', e.target.value);
+            }}
           >
             <option value="featured">Sort: Featured</option>
             <option value="price-asc">Price: Low to High</option>
@@ -485,7 +532,10 @@ export const TraditionalCatalog = ({
           <button
             key={state}
             className={`quick-state-pill ${selectedState === state ? 'active' : ''}`}
-            onClick={() => setSelectedState(state)}
+            onClick={() => {
+              setSelectedState(state);
+              updateParam('state', state);
+            }}
           >
             {state === 'All States' ? 'All States (13)' : state}
           </button>
@@ -500,43 +550,49 @@ export const TraditionalCatalog = ({
           {selectedDemographic !== 'ALL' && (
             <span className="active-filter-tag">
               Family: <strong>{selectedDemographic}</strong>
-              <button onClick={() => setSelectedDemographic('ALL')}>&times;</button>
+              <button onClick={() => {
+                setSelectedDemographic('ALL');
+                updateParam('demographic', 'ALL');
+              }}>&times;</button>
             </span>
           )}
-
+          
           {selectedState !== 'All States' && (
             <span className="active-filter-tag">
               State: <strong>{selectedState}</strong>
-              <button onClick={() => setSelectedState('All States')}>&times;</button>
+              <button onClick={() => {
+                setSelectedState('All States');
+                updateParam('state', 'All States');
+              }}>&times;</button>
             </span>
           )}
 
           {priceRange !== 'ALL' && (
             <span className="active-filter-tag">
-              Price: <strong>{priceRange === 'UNDER_5000' ? 'Under ₹5,000' : priceRange === '5000_10000' ? '₹5k-₹10k' : 'Above ₹10k'}</strong>
+              Price: <strong>{priceRange === 'UNDER_5000' ? '< ₹5K' : priceRange === '5000_10000' ? '₹5K-₹10K' : '> ₹10K'}</strong>
               <button onClick={() => setPriceRange('ALL')}>&times;</button>
             </span>
           )}
 
-          {onlyInStock && (
+          {searchQuery.trim() && (
             <span className="active-filter-tag">
-              <strong>In Stock Only</strong>
-              <button onClick={() => setOnlyInStock(false)}>&times;</button>
+              Search: <strong>"{searchQuery}"</strong>
+              <button onClick={() => {
+                setSearchQuery('');
+                updateParam('search', '');
+              }}>&times;</button>
             </span>
           )}
 
-          {searchQuery && (
-            <span className="active-filter-tag">
-              "{searchQuery}"
-              <button onClick={() => setSearchQuery('')}>&times;</button>
-            </span>
-          )}
-
-          <button className="clear-all-filters-btn" onClick={resetAllFilters}>
+          <button 
+            className="clear-all-link"
+            onClick={resetAllFilters}
+          >
             Clear All
           </button>
         </div>
       )}
+
 
       {/* Slide-Over Filter Drawer */}
       {isFilterDrawerOpen && (
@@ -891,41 +947,348 @@ export const ReturnPolicy = () => (
   </div>
 );
 
-export const OrderConfirmation = () => (
-  <div className="container" style={{ padding: '6rem 1.5rem', textAlign: 'center', maxWidth: '600px' }}>
-    <div style={{ width: '64px', height: '64px', margin: '0 auto 1.5rem', background: '#dcfce7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#15803d' }}>
-      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-        <polyline points="20 6 9 17 4 12"></polyline>
-      </svg>
-    </div>
-    <h1 style={{ fontSize: '2.8rem', fontWeight: 800, marginBottom: '0.75rem', color: '#18181b' }}>Order Confirmed!</h1>
-    <p style={{ color: '#4b5563', fontSize: '1.1rem', marginBottom: '2.5rem', lineHeight: 1.6 }}>
-      Your traditional attire order has been received and is being carefully prepared by our master weavers.
-    </p>
-    <Link to="/shop" className="btn btn-primary" style={{ padding: '0.9rem 2.25rem' }}>
-      Continue Exploring &rarr;
-    </Link>
-  </div>
-);
+export const OrderConfirmation = () => {
+  const [searchParams] = useSearchParams();
+  const orderId = searchParams.get('orderId');
+  const [order, setOrder] = useState(() => orderId ? api.getOrderById(orderId) : null);
 
-export const Dashboard = () => (
-  <div className="container" style={{ padding: '5rem 1.5rem' }}>
-    <h1 style={{ fontSize: '2.6rem', fontWeight: 800, marginBottom: '2rem', color: '#18181b' }}>My Account</h1>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '2.5rem' }}>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-        <span style={{ color: '#18181b', fontWeight: 700, padding: '0.5rem 0', borderBottom: '2px solid #18181b' }}>Order History</span>
-        <span style={{ color: '#6b7280', padding: '0.5rem 0' }}>Profile Settings</span>
-        <span style={{ color: '#6b7280', padding: '0.5rem 0' }}>Shipping Addresses</span>
+  useEffect(() => {
+    if (orderId && !order) {
+      const found = api.getOrderById(orderId);
+      if (found) setOrder(found);
+    }
+  }, [orderId, order]);
+
+  return (
+    <div className="container" style={{ padding: '4rem 1.5rem', maxWidth: '720px' }}>
+      <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+        <div style={{ width: '68px', height: '68px', margin: '0 auto 1.25rem', background: '#dcfce7', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#15803d' }}>
+          <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '1.5px' }}>
+          Order Successfully Placed
+        </span>
+        <h1 style={{ fontSize: '2.4rem', fontWeight: 800, margin: '0.35rem 0 0.5rem', color: 'var(--color-heading)' }}>
+          Dhanyawad! Your Handloom is Reserved
+        </h1>
+        <p style={{ color: 'var(--color-muted)', fontSize: '0.98rem', maxWidth: '540px', margin: '0 auto' }}>
+          Your artisanal ensemble is being prepared and authenticated with certified Silk Mark seals.
+        </p>
       </div>
-      <div style={{ gridColumn: 'span 2' }}>
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 700, marginBottom: '1.25rem', color: '#18181b' }}>Recent Orders</h2>
-        <div style={{ padding: '3rem', background: '#f8f9fa', border: '1px solid #e5e7eb', borderRadius: '12px', textAlign: 'center', color: '#6b7280' }}>
-          No recent orders found. Discover handloom collections across all states.
+
+      {order ? (
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid var(--color-border)', padding: '2rem', boxShadow: 'var(--shadow-sm)', marginBottom: '2rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: '1.25rem', marginBottom: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' }}>
+            <div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ORDER REFERENCE</div>
+              <div style={{ fontSize: '1.15rem', fontWeight: 800, color: 'var(--color-heading)' }}>#{order.id}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.5px' }}>ESTIMATED DELIVERY</div>
+              <div style={{ fontSize: '1rem', fontWeight: 700, color: '#065f46' }}>{order.estimatedDelivery || '4 - 6 Business Days'}</div>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '1.5rem' }}>
+            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-heading)', marginBottom: '0.75rem' }}>
+              Ordered Handloom Ensembles ({order.items?.length || 0})
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              {order.items?.map((item, idx) => (
+                <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: 'var(--bg-body)', padding: '0.75rem 1rem', borderRadius: '10px' }}>
+                  {item.productImage && (
+                    <img src={item.productImage} alt={item.productName} style={{ width: '48px', height: '48px', objectFit: 'cover', borderRadius: '8px' }} />
+                  )}
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--color-heading)' }}>{item.productName}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>
+                      Size: {item.size} • Color: {item.color} • Qty: {item.quantity}
+                    </div>
+                  </div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--color-heading)' }}>
+                    ₹{(item.price * item.quantity).toLocaleString('en-IN')}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '1.25rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', fontSize: '0.88rem' }}>
+            <div>
+              <div style={{ fontWeight: 700, color: 'var(--color-heading)', marginBottom: '0.25rem' }}>Delivery Destination:</div>
+              <div style={{ color: 'var(--color-muted)' }}>{order.customer?.name}</div>
+              <div style={{ color: 'var(--color-muted)' }}>{order.shipping?.street}, {order.shipping?.city}</div>
+              <div style={{ color: 'var(--color-muted)' }}>{order.shipping?.state} - {order.shipping?.zip}</div>
+            </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{ fontWeight: 700, color: 'var(--color-heading)', marginBottom: '0.25rem' }}>Payment Status:</div>
+              <div style={{ color: '#15803d', fontWeight: 600 }}>✓ Paid ({order.paymentMethod || 'UPI/Card'})</div>
+              <div style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--color-heading)', marginTop: '0.35rem' }}>
+                Total: ₹{(order.total || 0).toLocaleString('en-IN')}
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid var(--color-border)', padding: '2rem', marginBottom: '2rem', textAlign: 'center', color: 'var(--color-muted)' }}>
+          Order reference: <strong>{orderId || 'Recent Order'}</strong>. Confirmation email with tracking link has been sent.
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+        <Link to="/dashboard" className="btn btn-primary" style={{ padding: '0.9rem 2rem' }}>
+          View in My Orders &rarr;
+        </Link>
+        <Link to="/shop" className="btn" style={{ padding: '0.9rem 2rem', background: '#ffffff', border: '1px solid var(--color-border)' }}>
+          Continue Exploring
+        </Link>
+      </div>
+    </div>
+  );
+};
+
+export const Dashboard = () => {
+  const { user, logout } = useContext(AuthContext);
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState('orders');
+
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        const data = await api.getOrders();
+        setOrders(data);
+      } catch (err) {
+        console.warn('Failed to load orders:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOrders();
+  }, []);
+
+  return (
+    <div className="container" style={{ padding: '4.5rem 1.5rem', maxWidth: '1100px' }}>
+      {/* Account Profile Header */}
+      <div style={{ 
+        background: '#ffffff', 
+        borderRadius: '16px', 
+        border: '1px solid var(--color-border)', 
+        padding: '2rem 2.5rem', 
+        boxShadow: 'var(--shadow-sm)',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        flexWrap: 'wrap',
+        gap: '1.5rem',
+        marginBottom: '2.5rem'
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+          <div style={{ 
+            width: '56px', 
+            height: '56px', 
+            borderRadius: '50%', 
+            background: 'linear-gradient(135deg, var(--accent) 0%, #b45309 100%)', 
+            color: '#ffffff', 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center',
+            fontSize: '1.5rem',
+            fontWeight: 800
+          }}>
+            {(user?.name || user?.email || 'U')[0].toUpperCase()}
+          </div>
+          <div>
+            <h1 style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--color-heading)', margin: 0 }}>
+              {user?.name || 'Handloom Connoisseur'}
+            </h1>
+            <div style={{ color: 'var(--color-muted)', fontSize: '0.88rem' }}>
+              {user?.email || 'testuser@ragyai.com'} • <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Heritage Member</span>
+            </div>
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: '0.75rem' }}>
+          <Link to="/shop" className="btn btn-primary" style={{ padding: '0.65rem 1.4rem', fontSize: '0.88rem' }}>
+            Shop New Arrivals
+          </Link>
+          <button 
+            onClick={logout} 
+            className="btn" 
+            style={{ padding: '0.65rem 1.25rem', fontSize: '0.88rem', background: '#fee2e2', color: '#b91c1c' }}
+          >
+            Sign Out
+          </button>
+        </div>
+      </div>
+
+      {/* Tabs & Content */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '2.5rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          <button
+            onClick={() => setActiveTab('orders')}
+            style={{
+              textAlign: 'left',
+              padding: '0.85rem 1.25rem',
+              borderRadius: '10px',
+              fontWeight: 700,
+              fontSize: '0.92rem',
+              background: activeTab === 'orders' ? '#141416' : 'transparent',
+              color: activeTab === 'orders' ? '#ffffff' : 'var(--color-heading)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'var(--transition)'
+            }}
+          >
+            📦 Order History ({orders.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('addresses')}
+            style={{
+              textAlign: 'left',
+              padding: '0.85rem 1.25rem',
+              borderRadius: '10px',
+              fontWeight: 600,
+              fontSize: '0.92rem',
+              background: activeTab === 'addresses' ? '#141416' : 'transparent',
+              color: activeTab === 'addresses' ? '#ffffff' : 'var(--color-heading)',
+              border: 'none',
+              cursor: 'pointer',
+              transition: 'var(--transition)'
+            }}
+          >
+            📍 Saved Addresses
+          </button>
+          <Link
+            to="/wishlist"
+            style={{
+              textDecoration: 'none',
+              padding: '0.85rem 1.25rem',
+              borderRadius: '10px',
+              fontWeight: 600,
+              fontSize: '0.92rem',
+              color: 'var(--color-heading)',
+              display: 'block'
+            }}
+          >
+            ❤️ Saved Weaves & Wishlist
+          </Link>
+        </div>
+
+        <div style={{ gridColumn: 'span 2' }}>
+          {activeTab === 'orders' && (
+            <div>
+              <h2 style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: '1.25rem', color: 'var(--color-heading)' }}>
+                Your Heritage Orders ({orders.length})
+              </h2>
+
+              {loading ? (
+                <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-muted)' }}>Loading orders...</div>
+              ) : orders.length === 0 ? (
+                <div style={{ padding: '3.5rem 2rem', background: '#ffffff', border: '1px solid var(--color-border)', borderRadius: '16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '2.5rem', marginBottom: '1rem' }}>🛍️</div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem', color: 'var(--color-heading)' }}>No orders placed yet</h3>
+                  <p style={{ color: 'var(--color-muted)', fontSize: '0.92rem', marginBottom: '1.5rem' }}>
+                    Explore pure handlooms across 13 Indian states with Silk Mark guarantee.
+                  </p>
+                  <Link to="/shop" className="btn btn-primary" style={{ padding: '0.75rem 1.75rem' }}>
+                    Explore 13 States &rarr;
+                  </Link>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                  {orders.map((ord) => (
+                    <div 
+                      key={ord.id} 
+                      style={{ 
+                        background: '#ffffff', 
+                        borderRadius: '14px', 
+                        border: '1px solid var(--color-border)', 
+                        padding: '1.5rem',
+                        boxShadow: 'var(--shadow-sm)'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--color-border)', paddingBottom: '0.85rem', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+                        <div>
+                          <span style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--color-heading)' }}>#{ord.id}</span>
+                          <span style={{ fontSize: '0.78rem', color: 'var(--color-muted)', marginLeft: '0.75rem' }}>
+                            {new Date(ord.createdAt).toLocaleDateString('en-IN', { month: 'short', day: 'numeric', year: 'numeric' })}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+                          <span style={{ 
+                            background: '#dcfce7', 
+                            color: '#166534', 
+                            fontSize: '0.72rem', 
+                            fontWeight: 700, 
+                            padding: '0.25rem 0.65rem', 
+                            borderRadius: '100px',
+                            textTransform: 'uppercase'
+                          }}>
+                            {ord.status || 'CONFIRMED'}
+                          </span>
+                          <span style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--color-heading)' }}>
+                            ₹{(ord.total || 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginBottom: '1rem' }}>
+                        {ord.items?.map((it, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+                            {it.productImage && (
+                              <img src={it.productImage} alt={it.productName} style={{ width: '42px', height: '42px', objectFit: 'cover', borderRadius: '8px' }} />
+                            )}
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-heading)' }}>{it.productName}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--color-muted)' }}>
+                                {it.state && `${it.state} • `}Qty: {it.quantity} {it.size ? `• ${it.size}` : ''}
+                              </div>
+                            </div>
+                            <div style={{ fontSize: '0.88rem', fontWeight: 700, color: 'var(--color-heading)' }}>
+                              ₹{((it.price || 0) * it.quantity).toLocaleString('en-IN')}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div style={{ borderTop: '1px solid var(--color-border)', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: 'var(--color-muted)' }}>
+                        <div>Delivery to: {ord.shipping?.city || 'India'} (Est: {ord.estimatedDelivery || 'In 4 days'})</div>
+                        <Link to={`/order-confirmation?orderId=${ord.id}`} style={{ color: 'var(--accent)', fontWeight: 700, textDecoration: 'none' }}>
+                          View Receipt &rarr;
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'addresses' && (
+            <div style={{ background: '#ffffff', borderRadius: '16px', border: '1px solid var(--color-border)', padding: '2rem' }}>
+              <h2 style={{ fontSize: '1.3rem', fontWeight: 800, marginBottom: '1rem', color: 'var(--color-heading)' }}>Saved Delivery Addresses</h2>
+              {orders[0]?.shipping ? (
+                <div style={{ padding: '1rem 1.25rem', background: 'var(--bg-body)', borderRadius: '10px', border: '1px solid var(--color-border)', maxWidth: '400px' }}>
+                  <div style={{ fontWeight: 700, color: 'var(--color-heading)', marginBottom: '0.25rem' }}>Primary Shipping</div>
+                  <div style={{ fontSize: '0.88rem', color: 'var(--color-muted)' }}>{orders[0].customer?.name}</div>
+                  <div style={{ fontSize: '0.88rem', color: 'var(--color-muted)' }}>{orders[0].shipping.street}, {orders[0].shipping.city}</div>
+                  <div style={{ fontSize: '0.88rem', color: 'var(--color-muted)' }}>{orders[0].shipping.state} - {orders[0].shipping.zip}</div>
+                  <div style={{ fontSize: '0.88rem', color: 'var(--color-muted)', marginTop: '0.35rem' }}>Phone: {orders[0].customer?.phone}</div>
+                </div>
+              ) : (
+                <p style={{ color: 'var(--color-muted)', fontSize: '0.9rem' }}>
+                  Addresses used during checkout will automatically be saved here for 1-click reordering.
+                </p>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 export const Wishlist = () => {
   const { wishlist, removeFromWishlist } = useContext(WishlistContext);
